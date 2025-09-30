@@ -10,7 +10,7 @@ eureka:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
     
-# Common management endpoints
+# Common management endpoints - ALL IN ONE BLOCK
 management:
   endpoints:
     web:
@@ -19,9 +19,6 @@ management:
   endpoint:
     health:
       show-details: always
-      
-# Common tracing
-management:
   tracing:
     sampling:
       probability: 1.0
