@@ -1,1 +1,29 @@
 
+# This is optional - you can keep Eureka config local or put it here
+# dbs-config/eureka-server.yml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+logging:
+  level:
+    com.netflix.eureka: DEBUG
+    com.netflix.discovery: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+    
+# Additional Eureka configurations for production
+eureka:
+  server:
+    response-cache-update-interval-ms: 30000
+    response-cache-auto-expiration-in-seconds: 180
+    peer-eureka-nodes-update-interval-ms: 600000
+    registry-sync-retries: 5
+    wait-time-in-ms-when-sync-empty: 5
