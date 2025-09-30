@@ -1,4 +1,4 @@
-# This is in GitHub repo: dbs-config/api-gateway.yml
+# dbs-config/api-gateway.yml
 server:
   port: 8080
   netty:
@@ -105,6 +105,12 @@ spring:
           uri: lb://ACTUATOR
           predicates:
             - Path=/actuator/**
+            
+  # Redis configuration - UNDER THE SAME spring: key
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
 
 eureka:
   client:
@@ -139,13 +145,6 @@ resilience4j:
     configs:
       default:
         timeout-duration: 3s
-        
-# Rate Limiter Configuration (requires Redis)
-spring:
-  redis:
-    host: localhost
-    port: 6379
-    timeout: 2000ms
 
 # Distributed Tracing
 management:
