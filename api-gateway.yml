@@ -1,1 +1,178 @@
+# This is in GitHub repo: dbs-config/api-gateway.yml
+server:
+  port: 8080
+  netty:
+    connection-timeout: 2s
+    idle-timeout: 15s
+  http2:
+    enabled: true
 
+spring:
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+        - AddRequestHeader=X-Request-From, API-Gateway
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: 
+              - "http://localhost:3000"
+              - "http://localhost:4200"
+            allowed-methods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowed-headers: "*"
+            allow-credentials: true
+            max-age: 3600
+      routes:
+        # User Service Route
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - RewritePath=/api/users/(?<segment>.*), /$\{segment}
+            - name: CircuitBreaker
+              args:
+                name: user-service
+                fallbackUri: forward:/fallback/user-service
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET,POST
+                backoff:
+                  firstBackoff: 50ms
+                  maxBackoff: 500ms
+                  
+        # Workflow Service Route  
+        - id: workflow-service
+          uri: lb://WORKFLOW-SERVICE
+          predicates:
+            - Path=/api/workflows/**
+          filters:
+            - RewritePath=/api/workflows/(?<segment>.*), /$\{segment}
+            - name: CircuitBreaker
+              args:
+                name: workflow-service
+                
+        # Notification Service Route
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - RewritePath=/api/notifications/(?<segment>.*), /$\{segment}
+            
+        # Investment Service Route
+        - id: investment-service
+          uri: lb://INVESTMENT-SERVICE
+          predicates:
+            - Path=/api/investments/**
+          filters:
+            - RewritePath=/api/investments/(?<segment>.*), /$\{segment}
+            
+        # Payment Service Route
+        - id: payment-service
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - RewritePath=/api/payments/(?<segment>.*), /$\{segment}
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 200
+                redis-rate-limiter.requestedTokens: 1
+                
+        # Report Service Route
+        - id: report-service
+          uri: lb://REPORT-SERVICE
+          predicates:
+            - Path=/api/reports/**
+          filters:
+            - RewritePath=/api/reports/(?<segment>.*), /$\{segment}
+            
+        # Actuator Routes for all services
+        - id: actuator
+          uri: lb://ACTUATOR
+          predicates:
+            - Path=/actuator/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    registry-fetch-interval-seconds: 5
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+# Circuit Breaker Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 30s
+        failure-rate-threshold: 50
+        event-consumer-buffer-size: 10
+    instances:
+      user-service:
+        base-config: default
+      workflow-service:
+        base-config: default
+      payment-service:
+        base-config: default
+        failure-rate-threshold: 30  # More strict for payments
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+        
+# Rate Limiter Configuration (requires Redis)
+spring:
+  redis:
+    host: localhost
+    port: 6379
+    timeout: 2000ms
+
+# Distributed Tracing
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway,refresh
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.reactive.function.client: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
